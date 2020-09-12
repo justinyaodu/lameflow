@@ -25,18 +25,19 @@ class ObservableList(MutableSequence):
         self._data = list(iterable)
         self.listeners = set()
 
-    def _notify(mutation):
+    def _notify(self, *args):
+        mutation = ObservableList.Mutation(*args)
         for listener in self.listeners:
             listener(mutation)
-
-    def __len__(self):
-        return self._data.__len__()
 
     def __repr__(self):
         return f"ObservableList({repr(self._data)})"
 
-    def __getitem__(self, index):
-        return self._data.__getitem__(index)
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, key):
+        return self._data.__getitem__(key)
 
     def _index_normalize(self, i):
         """If i is negative, return the corresponding index relative to
@@ -46,18 +47,6 @@ class ObservableList(MutableSequence):
             return i
         else:
             return len(self) - i
-
-    def _slice_lower(self, i, end_offset=0):
-        if i is None:
-            return 0 + end_offset
-        else:
-            return min(i, len(self) + end_offset)
-
-    def _slice_upper(self, i, end_offset=0):
-        if i is None:
-            return len(self) + end_offset
-        else:
-            return min(i, len(self) + end_offset)
 
     def _slice_indices(self, s):
         """Return the indices in a slice of this list.
@@ -94,47 +83,64 @@ class ObservableList(MutableSequence):
                 index += k
         return indices
 
-    def __setitem__(self, index, value):
-        if isinstance(index, slice):
-            pass # TODO
+    def _slice_lower(self, i, end_offset=0):
+        if i is None:
+            return 0 + end_offset
         else:
-            index = int(index)
-            if index < 0:
-                index = len(self) + index
+            return min(i, len(self) + end_offset)
 
-            old_value = self[index]
-            self._data[index] = value
-            self._notify(ObservableList.Mutation(index, [old_value], [value]))
-            
+    def _slice_upper(self, i, end_offset=0):
+        if i is None:
+            return len(self) + end_offset
+        else:
+            return min(i, len(self) + end_offset)
 
+    def __setitem__(self, key, value):
+        if isinstance(key, slice):
+            added = list(value)
+            if not _is_extended_slice(key):
+                removed = self._data[key]
+                self._data[key] = added
+                self._notify(key.start, removed, added)
+            else:
+                indices = self._slice_indices(key)
+                if len(indices) != len(added):
+                    msg = (f"Cannot assign {len(added)} elements to extended "
+                            "slice with {len(indices)} indices.")
+                    raise ValueError(msg)
+                for index, element in zip(indices, added):
+                    self[index] = element
+        else:
+            key = int(key)
+            if key < 0:
+                key = len(self) + key
 
-        if not isinstance(index, int):
-            raise TypeError(f"Expected int, got {index.__class__.__name__}")
+            old_value = self[key]
+            self._data[key] = value
+            self._notify(key, [old_value], [value])
 
-        if index < 0:
-            index = len(self) + index
+    def __delitem__(self, key):
+        if isinstance(key, slice):
+            if not _is_extended_slice(key):
+                self[key] = []
+            else:
+                indices = self._slice_indices(key)
 
-        old_value = NotImplemented
-        try:
-            old_value = self[index]
-        except IndexError:
-            pass
+                # Remove elements in descending index order (to avoid
+                # shifting elements before they are removed).
+                if key.step > 0:
+                    indices = reversed(indices)
 
-        self._data.__setitem__(index, value)
-
-        for listener in self.listeners:
-            listener(ObservableList.Mutation(index, old_value, value))
-
-    def _set_item_single(self, index, value):
-        """Set the item at a single index."""
-
-        if index < 0:
-            index = len(self) + index
-
-        removed = self[index]
-
-    def __delitem__(self, index):
-        raise NotImplementedError
+                for index in indices:
+                    del self[index]
+        else:
+            self[key:key] = []
 
     def insert(self, index, value):
-        raise NotImplementedError
+        self[index:index] = [value]
+
+
+def _is_extended_slice(s):
+    """Return whether a slice is an extended slice."""
+
+    return s.step is not None and s.step != 1
