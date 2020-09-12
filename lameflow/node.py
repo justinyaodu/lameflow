@@ -7,6 +7,45 @@ from typing import NamedTuple
 from ._collections import ObservableList, ObservableDict
 
 
+class _NodeSuperclass:
+    """Dummy superclass allowing the Node class to use the functionality
+    in __init_subclass__.
+    """
+
+    def __init_subclass__(cls, /, new_key_space=None, same_key_error=None,
+            **kwargs):
+        """Customize Node subclass behavior.
+
+        Nodes in different key spaces will always compare unequal. If
+        new_key_space is True, a new key space will be created for this
+        class and its subclasses (recursively).
+
+        If new_key_space is False, instances of this class (including
+        subclasses) will share the same key space.
+
+        The value of same_key_error determines what happens when
+        attempting to create a Node with the same key as an existing
+        Node. If same_key_error is True, then a SameKeyError will be
+        raised; this can be used to ensure that only one Node has access
+        to an exclusive resource, for example.
+
+        If same_key_error is False, then the existing Node is returned
+        instead of creating a new Node. This can be used for memoizing
+        the result of a computation.
+
+        If new_key_space or same_key_error are not specified, the value
+        of the superclass will be used.
+        """
+
+        super().__init_subclass__(**kwargs)
+        if new_key_space is not None:
+            cls._new_key_space = new_key_space
+        if cls._new_key_space:
+            cls._key_space = cls
+        if same_key_error is not None:
+            cls._same_key_error = same_key_error
+
+
 class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     """Represent a node in the data flow graph."""
 
@@ -32,28 +71,30 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         else:
             return existing
 
-    def _on_arg_add(node):
+    def _on_arg_add(self, arg):
         self.invalidate()
-        try:
-            self._arg_refcount[node] += 1
-        except KeyError:
-            node._dependents.add(self)
-            self._arg_refcount[node] = 1
+        if isinstance(arg, Node):
+            try:
+                self._arg_refcount[arg] += 1
+            except KeyError:
+                arg._dependents.add(self)
+                self._arg_refcount[arg] = 1
 
-    def _on_arg_remove(node):
+    def _on_arg_remove(self, arg):
         self.invalidate()
-        self._arg_refcount[node] -= 1
-        if self._arg_refcount[node] == 0:
-            del self._arg_refcount[node]
-            node._dependents.remove(self)
+        if isinstance(arg, Node):
+            self._arg_refcount[arg] -= 1
+            if self._arg_refcount[arg] == 0:
+                del self._arg_refcount[arg]
+                arg._dependents.remove(self)
 
-    def _on_args_changed(mutation):
+    def _on_args_changed(self, mutation):
         for node in mutation.added:
             self._on_arg_add(node)
         for node in mutation.removed:
             self._on_arg_remove(node)
 
-    def _on_kwargs_changed(mutation):
+    def _on_kwargs_changed(self, mutation):
         for node in mutation.added.values():
             self._on_arg_add(node)
         for node in mutation.removed.values():
@@ -121,45 +162,6 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     def value(self, new_value):
         self.state = Node.State.VALID
         self._value = new_value
-
-
-class _NodeSuperclass:
-    """Dummy superclass allowing the Node class to use the functionality
-    in __init_subclass__.
-    """
-
-    def __init_subclass__(cls, /, new_key_space=None, same_key_error=None,
-            **kwargs):
-        """Customize Node subclass behavior.
-
-        Nodes in different key spaces will always compare unequal. If
-        new_key_space is True, a new key space will be created for this
-        class and its subclasses (recursively).
-
-        If new_key_space is False, instances of this class (including
-        subclasses) will share the same key space.
-
-        The value of same_key_error determines what happens when
-        attempting to create a Node with the same key as an existing
-        Node. If same_key_error is True, then a SameKeyError will be
-        raised; this can be used to ensure that only one Node has access
-        to an exclusive resource, for example.
-
-        If same_key_error is False, then the existing Node is returned
-        instead of creating a new Node. This can be used for memoizing
-        the result of a computation.
-
-        If new_key_space or same_key_error are not specified, the value
-        of the superclass will be used.
-        """
-
-        super().__init_subclass__(**kwargs)
-        if new_key_space is not None:
-            cls._new_key_space = new_key_space
-        if cls._new_key_space:
-            cls._key_space = cls
-        if same_key_error is not None:
-            cls._same_key_error = same_key_error
 
 
 class NodeKey(NamedTuple):
