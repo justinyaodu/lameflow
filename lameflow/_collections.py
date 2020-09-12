@@ -1,16 +1,33 @@
-from collections.abc import MutableSequence
+from collections.abc import MutableSequence, MutableMapping
 
-class ObservableList(MutableSequence):
+class ObservableCollection:
+    """A collection which can be observed for mutations."""
+
+    def __init__(self, data):
+        super().__init__()
+        self._data = data
+        self.listeners = set()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._data})"
+
+    def _notify(self, *args):
+        mutation = self.__class__.Mutation(*args)
+        for listener in self.listeners:
+            listener(mutation)
+
+
+class ObservableList(MutableSequence, ObservableCollection):
     """A list which can be observed for mutations."""
 
     class Mutation:
         """A mutation to a list.
 
         Before the mutation:
-            removed == list[index:len(removed)]
+            removed == obs_list[index:len(removed)]
 
         After the mutation:
-            added == list[index:len(added)]
+            added == obs_list[index:len(added)]
         """
 
         def __init__(self, index, removed, added):
@@ -23,16 +40,7 @@ class ObservableList(MutableSequence):
                     f"removed {self.removed}, added {self.added}")
 
     def __init__(self, iterable=[]):
-        self._data = list(iterable)
-        self.listeners = set()
-
-    def _notify(self, *args):
-        mutation = ObservableList.Mutation(*args)
-        for listener in self.listeners:
-            listener(mutation)
-
-    def __repr__(self):
-        return f"ObservableList({repr(self._data)})"
+        super().__init__(list(iterable))
 
     def __len__(self):
         return len(self._data)
@@ -148,3 +156,51 @@ def _is_extended_slice(s):
     """Return whether a slice is an extended slice."""
 
     return s.step is not None and s.step != 1
+
+
+class ObservableDict(MutableMapping, ObservableCollection):
+    """A dict which can be observed for mutations."""
+
+    class Mutation:
+        """A mutation to a dict.
+
+        Before the mutation:
+            all(obs_dict[k] == v for k, v in removed.items())
+
+        After the mutation:
+            all(obs_dict[k] == v for k, v in added.items())
+        """
+
+        def __init__(self, removed, added):
+            self.removed = removed
+            self.added = added
+
+        def __str__(self):
+            return f"removed {self.removed}, added {self.added}"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(dict(*args, **kwargs))
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, key):
+        return self._data.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        removed = {}
+        try:
+            removed[key] = self[key]
+        except KeyError:
+            pass
+
+        self._data[key] = value
+        self._notify(removed, {key: value})
+
+    def __delitem__(self, key):
+        removed = {key: self[key]}
+        del self._data[key]
+        self._notify(removed, {})
