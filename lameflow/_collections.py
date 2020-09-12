@@ -1,6 +1,11 @@
+"""Collections classes with additional functionality."""
+
+__all__ = ["ObservableList", "ObservableDict"]
+
 from collections.abc import MutableSequence, MutableMapping
 
-class ObservableCollection:
+
+class _ObservableCollection:
     """A collection which can be observed for mutations."""
 
     def __init__(self, data):
@@ -17,7 +22,7 @@ class ObservableCollection:
             listener(mutation)
 
 
-class ObservableList(MutableSequence, ObservableCollection):
+class ObservableList(MutableSequence, _ObservableCollection):
     """A list which can be observed for mutations."""
 
     class Mutation:
@@ -158,7 +163,7 @@ def _is_extended_slice(s):
     return s.step is not None and s.step != 1
 
 
-class ObservableDict(MutableMapping, ObservableCollection):
+class ObservableDict(MutableMapping, _ObservableCollection):
     """A dict which can be observed for mutations."""
 
     class Mutation:
