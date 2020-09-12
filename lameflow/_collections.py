@@ -19,7 +19,8 @@ class ObservableList(MutableSequence):
             self.added = added
 
         def __str__(self):
-            return f"[{self.index}]: removed {self.removed}, added {self.added}"
+            return (f"index {self.index}: "
+                    f"removed {self.removed}, added {self.added}")
 
     def __init__(self, iterable=[]):
         self._data = list(iterable)
@@ -101,7 +102,7 @@ class ObservableList(MutableSequence):
             if not _is_extended_slice(key):
                 removed = self._data[key]
                 self._data[key] = added
-                self._notify(key.start, removed, added)
+                self._notify(key.start or 0, removed, added)
             else:
                 indices = self._slice_indices(key)
                 if len(indices) != len(added):
@@ -138,6 +139,9 @@ class ObservableList(MutableSequence):
 
     def insert(self, index, value):
         self[index:index] = [value]
+
+    def clear(self):
+        del self[:]
 
 
 def _is_extended_slice(s):
