@@ -4,7 +4,7 @@ from enum import Enum
 import itertools
 from typing import NamedTuple
 
-from ._collections import ObservableList, ObservableDict
+from ._collections import FrozenDict, ObservableList, ObservableDict
 
 
 class _NodeSuperclass:
@@ -118,6 +118,30 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
         # Nodes whose values depend on this Node.
         self._dependents = set()
+
+    @property
+    def args(self):
+        return self._args
+
+    @args.setter
+    def args(self, value):
+        if self._args is None:
+            self._args = value
+        else:
+            self._args.clear()
+            self._args.extend(value)
+
+    @property
+    def kwargs(self):
+        return self._kwargs
+
+    @kwargs.setter
+    def kwargs(self, value):
+        if self._kwargs is None:
+            self._kwargs = value
+        else:
+            self._kwargs.clear()
+            self._kwargs.update(value)
 
     def invalidate(self):
         """Indicate that the value of this Node is no longer valid."""
