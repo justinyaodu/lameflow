@@ -1,6 +1,6 @@
 """Represent expressions and objects as Nodes."""
 
-from enum import Enum
+import enum
 import itertools
 from typing import NamedTuple
 
@@ -49,11 +49,11 @@ class _NodeSuperclass:
 class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     """Represent a node in the data flow graph."""
 
-    class State(Enum):
+    class State(enum.Enum):
         """Whether a Node is invalidated, recalculating, or valid."""
-        INVALID = 0
-        PENDING = 1
-        VALID = 2
+        INVALID = enum.auto()
+        PENDING = enum.auto()
+        VALID = enum.auto()
 
     _by_key = {}
     """Index all Node instances by their keys."""
