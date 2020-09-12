@@ -128,13 +128,16 @@ class _NodeSuperclass:
     in __init_subclass__.
     """
 
-    def __init_subclass__(cls, /, new_key_space=False, same_key_error=None,
+    def __init_subclass__(cls, /, new_key_space=None, same_key_error=None,
             **kwargs):
         """Customize Node subclass behavior.
 
         Nodes in different key spaces will always compare unequal. If
-        new_key_space is True, a new key space will be created for all
-        instances of this subclass.
+        new_key_space is True, a new key space will be created for this
+        class and its subclasses (recursively).
+
+        If new_key_space is False, instances of this class (including
+        subclasses) will share the same key space.
 
         The value of same_key_error determines what happens when
         attempting to create a Node with the same key as an existing
@@ -146,12 +149,14 @@ class _NodeSuperclass:
         instead of creating a new Node. This can be used for memoizing
         the result of a computation.
 
-        If same_key_error is not specified, the behavior of the
-        superclass will be used.
+        If new_key_space or same_key_error are not specified, the value
+        of the superclass will be used.
         """
 
         super().__init_subclass__(**kwargs)
-        if new_key_space:
+        if new_key_space is not None:
+            cls._new_key_space = new_key_space
+        if cls._new_key_space:
             cls._key_space = cls
         if same_key_error is not None:
             cls._same_key_error = same_key_error
