@@ -105,8 +105,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
         self.state = Node.State.INVALID
 
-        # Nodes passed as keyword and positional arguments to
-        # compute_value.
+        # Keyword and positional arguments to compute_value.
         self.args = ObservableList()
         self.kwargs = ObservableDict()
 
