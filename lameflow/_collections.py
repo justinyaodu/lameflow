@@ -3,14 +3,22 @@
 __all__ = ["ObservableList", "ObservableDict"]
 
 from collections.abc import MutableSequence, MutableMapping
+import functools
+import operator
 
 
-class _ObservableCollection:
+class _CollectionWrapper:
+    """A class wrapping a collection."""
+
+    def __init__(self, data):
+        self._data = data
+
+
+class _ObservableCollection(_CollectionWrapper):
     """A collection which can be observed for mutations."""
 
     def __init__(self, data):
-        super().__init__()
-        self._data = data
+        super().__init__(data)
         self.listeners = set()
 
     def __repr__(self):
@@ -193,7 +201,7 @@ class ObservableDict(MutableMapping, _ObservableCollection):
         return len(self.data)
 
     def __getitem__(self, key):
-        return self._data.__getitem__(key)
+        return self._data[key]
 
     def __setitem__(self, key, value):
         removed = {}
@@ -209,3 +217,23 @@ class ObservableDict(MutableMapping, _ObservableCollection):
         removed = {key: self[key]}
         del self._data[key]
         self._notify(removed, {})
+
+
+class FrozenDict(Mapping, _CollectionWrapper):
+    """A dict which cannot be modified."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(dict(*args, **kwargs))
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __hash__(self):
+        return functools.reduce(
+                operator.xor, (k, v for k, v in self._data.items()), 31415926)
