@@ -69,7 +69,20 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         elif existing.__class__._same_key_error:
             raise SameKeyError(key_data, existing.__class__, new_class)
         else:
+            # TODO
+            # existing._skip_init = True
+            # existing.__init__ = lambda *args, **kwargs: args + kwargs
             return existing
+
+    def __getattribute__(self, name):
+        if name == "__init__":
+            self.__initialized = True
+
+    def __str__(self):
+        return str(self.key)
+
+    def __hash__(self):
+        return hash(self.key)
 
     def _on_arg_add(self, arg):
         self.invalidate()
@@ -101,6 +114,10 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
             self._on_arg_remove(node)
 
     def __init__(self, key_data):
+        # TODO
+#        if hasattr(self, "_skip_init"):
+#            return
+
         # Key is assigned in __new__.
 
         self.state = Node.State.INVALID
@@ -119,13 +136,30 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         # Nodes whose values depend on this Node.
         self._dependents = set()
 
+        NodeCreateEvent(self)
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        try:
+            old_state = self._state
+        except AttributeError:
+            old_state = None
+
+        self._state = new_state
+        if old_state is not None:
+            NodeStateEvent(self, old_state, new_state)
+
     @property
     def args(self):
         return self._args
 
     @args.setter
     def args(self, value):
-        if self._args is None:
+        if not hasattr(self, "_args"):
             self._args = value
         else:
             self._args.clear()
@@ -137,7 +171,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @kwargs.setter
     def kwargs(self, value):
-        if self._kwargs is None:
+        if not hasattr(self, "_kwargs"):
             self._kwargs = value
         else:
             self._kwargs.clear()
@@ -184,7 +218,12 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     @value.setter
     def value(self, new_value):
         self.state = Node.State.VALID
+        try:
+            old_value = self._value
+        except AttributeError:
+            old_value = None
         self._value = new_value
+        NodeValueEvent(self, old_value, new_value)
 
 
 class NodeKey(NamedTuple):
@@ -195,6 +234,52 @@ class NodeKey(NamedTuple):
 
     def __str__(self):
         return f"{self.key_space.__name__}:{self.data}"
+
+
+class NodeEvent:
+    """Represent a change that occurred to a Node (for logging)."""
+
+    listeners = set()
+
+    def __init__(self, node):
+        self.node = node
+
+        for listener in NodeEvent.listeners:
+            listener(self)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.node}"
+
+
+class NodeCreateEvent(NodeEvent):
+    """Fired when a new Node is created."""
+
+    def __init__(self, node):
+        super().__init__(node)
+
+
+class NodeStateEvent(NodeEvent):
+    """Fired when a Node's state changes."""
+
+    def __init__(self, node, old_state, new_state):
+        self.old_state = old_state
+        self.new_state = new_state
+        super().__init__(node)
+
+    def __str__(self):
+        return super().__str__() + f": {self.old_state} -> {self.new_state}"
+
+
+class NodeValueEvent(NodeEvent):
+    """Fired when a Node's value changes."""
+
+    def __init__(self, node, old_value, new_value):
+        self.old_value = old_value
+        self.new_value = new_value
+        super().__init__(node)
+
+    def __str__(self):
+        return super().__str__() + f": {self.new_value}"
 
 
 class DependencyCycleError(Exception):
