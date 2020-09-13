@@ -267,6 +267,9 @@ class Node(_NodeSuperclass, same_key_error=False):
 
     @value.setter
     def value(self, new_value):
+        if self._value == new_value:
+            return
+
         self.invalidate()
         old_value = self._value
         self._value = new_value
@@ -274,14 +277,15 @@ class Node(_NodeSuperclass, same_key_error=False):
         NodeValueEvent(self, old_value, new_value)
 
     @property
-    def lazy_value(self, default=None):
-        """Return the value of this Node if it is valid, or the
-        specified default if it is invalid.
+    def lazy_value(self):
+        """Return the value of this Node if it is valid, or None if it
+        is invalid.
         """
+
         if self.state == Node.State.VALID:
             return self.value
         else:
-            return default
+            return None
 
 
 class DependencyCycleError(Exception):
