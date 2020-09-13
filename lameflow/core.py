@@ -1,9 +1,9 @@
 """Nodes for constants, independent variables, and bound variables."""
 
 __all__ = [
-    "ConstantNode",
-    "VariableNode",
-    "FunctionNode"
+    "ConstNode",
+    "VarNode",
+    "FuncNode"
 ]
 
 from .node import *
@@ -24,7 +24,7 @@ class _IndependentNode(Node):
 
 
 @nodeclass
-class ConstantNode(_IndependentNode):
+class ConstNode(_IndependentNode):
     """A Node whose value is a hashable constant."""
 
     @Node.value.setter
@@ -32,7 +32,7 @@ class ConstantNode(_IndependentNode):
         # Allow the value to be changed exactly once, during __init__.
         try:
             if self.__initialized:
-                raise TypeError("Cannot change the value of a ConstantNode.")
+                raise TypeError("Cannot change the value of a ConstNode.")
         except AttributeError:
             Node.value.fset(self, new_value)
             self.__initialized = True
@@ -46,10 +46,10 @@ class ConstantNode(_IndependentNode):
 
 
 @nodeclass
-class VariableNode(_IndependentNode):
+class VarNode(_IndependentNode):
     """A Node whose value can be changed directly.
 
-    VariableNode instances are never memoized.
+    VarNode instances are never memoized.
     """
 
     _instance_counter = -1
@@ -59,12 +59,12 @@ class VariableNode(_IndependentNode):
 
     @staticmethod
     def key(cls, *args, **kwargs):
-        VariableNode._instance_counter += 1
-        return (cls, VariableNode._instance_counter)
+        VarNode._instance_counter += 1
+        return (cls, VarNode._instance_counter)
 
 
 @nodeclass
-class FunctionNode(Node):
+class FuncNode(Node):
     """A Node whose value is bound to a function of other Node values.
 
     The constructor arguments should be Nodes representing the
@@ -74,7 +74,7 @@ class FunctionNode(Node):
     """
 
     def __init__(self, func, *args, **kwargs):
-        super().__init__(ConstantNode(func), *args, **kwargs)
+        super().__init__(ConstNode(func), *args, **kwargs)
 
     def compute_value(self, func, *args, **kwargs):
         return func.value(*(n.value for n in args),
