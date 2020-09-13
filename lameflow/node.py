@@ -29,6 +29,7 @@ def node(cls):
 
     cls.__init__ = init_wrapper
 
+    # Mark this class as decorated.
     del cls._node_decorator_missing_flag
 
     return cls
@@ -83,7 +84,7 @@ class _NodeSuperclass:
 
         try:
             subclass = self._node_decorator_missing_flag
-            msg = f"Node subclass '{subclass}' is missing the node decorator."
+            msg = f"Node subclass '{subclass}' is missing the @node decorator."
             raise TypeError(msg)
         except AttributeError:
             pass
@@ -154,6 +155,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         super().__init__()
 
         self._state = Node.State.INVALID
+        self._value = None
 
         # Keyword and positional arguments to compute_value.
         self._args = ObservableList()
@@ -240,12 +242,10 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @value.setter
     def value(self, new_value):
-        self.state = Node.State.VALID
-        try:
-            old_value = self._value
-        except AttributeError:
-            old_value = None
+        self.invalidate()
+        old_value = self._value
         self._value = new_value
+        self.state = Node.State.VALID
         NodeValueEvent(self, old_value, new_value)
 
 
