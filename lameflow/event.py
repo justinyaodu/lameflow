@@ -1,6 +1,11 @@
 """Allow observation of Node creation and modification."""
 
-__all__ = ["NodeEvent", "NodeCreateEvent", "NodeStateEvent", "NodeValueEvent"]
+__all__ = [
+    "NodeEvent",
+    "NodeCreateEvent",
+    "NodeStateEvent",
+    "NodeValueEvent"
+]
 
 class NodeEvent:
     """Represent a change that occurred to a Node (for logging)."""
