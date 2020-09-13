@@ -1,6 +1,6 @@
 """Collections classes with additional functionality."""
 
-__all__ = ["ObservableList", "ObservableDict"]
+__all__ = ["FrozenDict", "ObservableList", "ObservableDict"]
 
 from collections.abc import Mapping, MutableSequence, MutableMapping
 import functools
@@ -12,6 +12,28 @@ class _CollectionWrapper:
 
     def __init__(self, data):
         self._data = data
+
+
+class FrozenDict(Mapping, _CollectionWrapper):
+    """A dict which cannot be modified."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(dict(*args, **kwargs))
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __hash__(self):
+        if hasattr(self, "_hash"):
+            return self._hash
+        self._hash = hash(tuple(t for k, v in self._data.items()))
+        return self._hash
 
 
 class _ObservableCollection(_CollectionWrapper):
@@ -217,23 +239,3 @@ class ObservableDict(MutableMapping, _ObservableCollection):
         removed = {key: self[key]}
         del self._data[key]
         self._notify(removed, {})
-
-
-class FrozenDict(Mapping, _CollectionWrapper):
-    """A dict which cannot be modified."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(dict(*args, **kwargs))
-
-    def __getitem__(self, key):
-        return self._data[key]
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def __len__(self):
-        return len(self._data)
-
-    def __hash__(self):
-        return functools.reduce(
-                operator.xor, (t for k, v in self._data.items()), 31415926)
