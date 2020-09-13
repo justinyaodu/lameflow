@@ -1,8 +1,12 @@
 """Represent expressions and objects as Nodes."""
 
+__all__ = ["node", "Node", "DependencyCycleError", "SameKeyError"]
+
 import enum
 import itertools
 from typing import NamedTuple
+
+from .event import *
 
 from ._collections import FrozenDict, ObservableList, ObservableDict
 
@@ -104,7 +108,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     """Index all Node instances by their keys."""
 
     def __new__(new_class, key_data):
-        key = NodeKey(new_class._key_space, key_data)
+        key = _NodeKey(new_class._key_space, key_data)
         existing = Node._by_key.get(key)
         if existing is None:
             instance = super().__new__(new_class)
@@ -249,7 +253,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         NodeValueEvent(self, old_value, new_value)
 
 
-class NodeKey(NamedTuple):
+class _NodeKey(NamedTuple):
     """Uniquely identify a Node using its key space and key data."""
 
     key_space: type
@@ -257,52 +261,6 @@ class NodeKey(NamedTuple):
 
     def __str__(self):
         return f"{self.key_space.__name__}:{self.data}"
-
-
-class NodeEvent:
-    """Represent a change that occurred to a Node (for logging)."""
-
-    listeners = set()
-
-    def __init__(self, node):
-        self.node = node
-
-        for listener in NodeEvent.listeners:
-            listener(self)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.node}"
-
-
-class NodeCreateEvent(NodeEvent):
-    """Fired when a new Node is created."""
-
-    def __init__(self, node):
-        super().__init__(node)
-
-
-class NodeStateEvent(NodeEvent):
-    """Fired when a Node's state changes."""
-
-    def __init__(self, node, old_state, new_state):
-        self.old_state = old_state
-        self.new_state = new_state
-        super().__init__(node)
-
-    def __str__(self):
-        return super().__str__() + f": {self.old_state} -> {self.new_state}"
-
-
-class NodeValueEvent(NodeEvent):
-    """Fired when a Node's value changes."""
-
-    def __init__(self, node, old_value, new_value):
-        self.old_value = old_value
-        self.new_value = new_value
-        super().__init__(node)
-
-    def __str__(self):
-        return super().__str__() + f": {self.new_value}"
 
 
 class DependencyCycleError(Exception):
