@@ -2,7 +2,7 @@
 
 __all__ = ["ObservableList", "ObservableDict"]
 
-from collections.abc import MutableSequence, MutableMapping
+from collections.abc import Mapping, MutableSequence, MutableMapping
 import functools
 import operator
 
@@ -236,4 +236,4 @@ class FrozenDict(Mapping, _CollectionWrapper):
 
     def __hash__(self):
         return functools.reduce(
-                operator.xor, (k, v for k, v in self._data.items()), 31415926)
+                operator.xor, (t for k, v in self._data.items()), 31415926)
