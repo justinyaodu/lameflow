@@ -1,6 +1,11 @@
-"""Represent expressions and objects as Nodes."""
+"""Define the Node class and node subclass decorator."""
 
-__all__ = ["node", "Node", "DependencyCycleError", "SameKeyError"]
+__all__ = [
+    "node",
+    "Node",
+    "DependencyCycleError",
+    "SameKeyError"
+]
 
 import enum
 import itertools
@@ -44,16 +49,8 @@ class _NodeSuperclass:
     in __init_subclass__.
     """
 
-    def __init_subclass__(cls, /, new_key_space=None, same_key_error=None,
-            **kwargs):
+    def __init_subclass__(cls, /, same_key_error=None, **kwargs):
         """Customize Node subclass behavior.
-
-        Nodes in different key spaces will always compare unequal. If
-        new_key_space is True, a new key space will be created for this
-        class and its subclasses (recursively).
-
-        If new_key_space is False, instances of this class (including
-        subclasses) will share the same key space.
 
         The value of same_key_error determines what happens when
         attempting to create a Node with the same key as an existing
@@ -65,16 +62,12 @@ class _NodeSuperclass:
         instead of creating a new Node. This can be used for memoizing
         the result of a computation.
 
-        If new_key_space or same_key_error are not specified, the value
-        of the superclass will be used.
+        If same_key_error is not specified, the behavior of the
+        superclass will be used.
         """
 
         super().__init_subclass__(**kwargs)
 
-        if new_key_space is not None:
-            cls._new_key_space = new_key_space
-        if cls._new_key_space:
-            cls._key_space = cls
         if same_key_error is not None:
             cls._same_key_error = same_key_error
 
@@ -95,7 +88,7 @@ class _NodeSuperclass:
 
 
 @node
-class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
+class Node(_NodeSuperclass, same_key_error=False):
     """Represent a node in the data flow graph."""
 
     class State(enum.Enum):
@@ -107,8 +100,8 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     _by_key = {}
     """Index all Node instances by their keys."""
 
-    def __new__(new_class, key_data):
-        key = _NodeKey(new_class._key_space, key_data)
+    def __new__(new_class, *args, **kwargs):
+        key = new_class.key(new_class, *args, **kwargs)
         existing = Node._by_key.get(key)
         if existing is None:
             instance = super().__new__(new_class)
@@ -116,50 +109,77 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
             Node._by_key[key] = instance
             return instance
         elif existing._same_key_error:
-            raise SameKeyError(key_data, existing.__class__, new_class)
+            raise SameKeyError(key, existing.__class__, new_class)
         else:
             return existing
 
     def __str__(self):
-        return str(self.key)
+        return f"{__class__.__name__}: {self.key}"
 
     def __hash__(self):
         return hash(self.key)
 
     def _on_arg_add(self, arg):
         self.invalidate()
-        if isinstance(arg, Node):
-            try:
-                self._arg_refcount[arg] += 1
-            except KeyError:
-                arg._dependents.add(self)
-                self._arg_refcount[arg] = 1
+        try:
+            self._arg_refcount[arg] += 1
+        except KeyError:
+            arg._dependents.add(self)
+            self._arg_refcount[arg] = 1
 
     def _on_arg_remove(self, arg):
         self.invalidate()
-        if isinstance(arg, Node):
-            self._arg_refcount[arg] -= 1
-            if self._arg_refcount[arg] == 0:
-                del self._arg_refcount[arg]
-                arg._dependents.remove(self)
+        self._arg_refcount[arg] -= 1
+        if self._arg_refcount[arg] == 0:
+            del self._arg_refcount[arg]
+            arg._dependents.remove(self)
 
     def _on_args_changed(self, mutation):
-        for node in mutation.added:
-            self._on_arg_add(node)
-        for node in mutation.removed:
-            self._on_arg_remove(node)
+        for arg in mutation.added:
+            self._on_arg_add(arg)
+        for arg in mutation.removed:
+            self._on_arg_remove(arg)
 
     def _on_kwargs_changed(self, mutation):
-        for node in mutation.added.values():
-            self._on_arg_add(node)
-        for node in mutation.removed.values():
-            self._on_arg_remove(node)
+        for arg in mutation.added.values():
+            self._on_arg_add(arg)
+        for arg in mutation.removed.values():
+            self._on_arg_remove(arg)
 
-    def __init__(self, key_data):
+    @staticmethod
+    def key(cls, *args, **kwargs):
+        """Return a hashable key unique to a Node instance.
+
+        This static method is passed the class of the requested instance
+        and the constructor arguments, just like __new__.
+
+        If the returned key matches an existing Node instance, the
+        existing instance will be returned (or a SameKeyError will be
+        raised, depending on the class' value for same_key_error).
+        Subclasses can override this method to customize how instance
+        memoization (if any) is done.
+
+        To avoid key collisions between Node subclasses, it is
+        recommended to include the class of the Node instance as part of
+        the key.
+        """
+
+        items = [cls]
+        if args:
+            items.append(tuple(args))
+        if kwargs:
+            items.append(FrozenDict(kwargs))
+        return tuple(items)
+
+    def __init__(self, *args, **kwargs):
         super().__init__()
 
         self._state = Node.State.INVALID
         self._value = None
+
+        # Map Nodes to the number of times they appear in this Node's
+        # arguments.
+        self._arg_refcount = {}
 
         # Keyword and positional arguments to compute_value.
         self._args = ObservableList()
@@ -168,9 +188,8 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         self.args.listeners.add(self._on_args_changed)
         self.kwargs.listeners.add(self._on_kwargs_changed)
 
-        # Map Nodes to the number of times they appear in this Node's
-        # arguments.
-        self._arg_refcount = {}
+        self.args = args
+        self.kwargs = kwargs
 
         # Nodes whose values depend on this Node.
         self._dependents = set()
@@ -185,8 +204,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     def state(self, new_state):
         old_state = self._state
         self._state = new_state
-        if old_state is not None:
-            NodeStateEvent(self, old_state, new_state)
+        NodeStateEvent(self, old_state, new_state)
 
     @property
     def args(self):
@@ -194,6 +212,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @args.setter
     def args(self, value):
+        # Replace contents instead of replacing the attribute.
         self._args.clear()
         self._args.extend(value)
 
@@ -203,6 +222,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @kwargs.setter
     def kwargs(self, value):
+        # Replace contents instead of replacing the attribute.
         self._kwargs.clear()
         self._kwargs.update(value)
 
@@ -215,7 +235,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
                 dependent.invalidate()
 
     def compute_value(self, *args, **kwargs):
-        """Compute this Node's value from the values of parent Nodes.
+        """Compute this Node's value from its parent Nodes.
 
         Subclasses should override this method to do something useful.
         """
@@ -251,16 +271,6 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
         self._value = new_value
         self.state = Node.State.VALID
         NodeValueEvent(self, old_value, new_value)
-
-
-class _NodeKey(NamedTuple):
-    """Uniquely identify a Node using its key space and key data."""
-
-    key_space: type
-    data: object
-
-    def __str__(self):
-        return f"{self.key_space.__name__}:{self.data}"
 
 
 class DependencyCycleError(Exception):
