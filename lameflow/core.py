@@ -41,6 +41,9 @@ class ConstantNode(_IndependentNode):
         # Constants cannot be invalidated.
         pass
 
+    def __str__(self):
+        return f"{self.__class__.__name__}[{repr(self.lazy_value)}]"
+
 
 @nodeclass
 class VariableNode(_IndependentNode):
@@ -49,7 +52,10 @@ class VariableNode(_IndependentNode):
     VariableNode instances are never memoized.
     """
 
-    _instance_counter = 0
+    _instance_counter = -1
+
+    def __str__(self):
+        return f"{self.__class__.__name__}[{self.key[1]}]"
 
     @staticmethod
     def key(cls, *args, **kwargs):
@@ -73,3 +79,10 @@ class FunctionNode(Node):
     def compute_value(self, func, *args, **kwargs):
         return func.value(*(n.value for n in args),
                 **{k: n.value for k, n in kwargs.items()})
+
+    def __str__(self):
+        before = f"{self.__class__.__name__}[{self.args[0].value.__name__}("
+        args = [str(arg) for arg in self.args[1:]]
+        args.extend(f"{k}={v}" for k, v in self.kwargs.items())
+        args = ", ".join(args)
+        return before + args + ")]"

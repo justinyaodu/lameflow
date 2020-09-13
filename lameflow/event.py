@@ -38,7 +38,8 @@ class NodeStateEvent(NodeEvent):
         super().__init__(node)
 
     def __str__(self):
-        return super().__str__() + f": {self.old_state} -> {self.new_state}"
+        return (super().__str__()
+                + f": {self.old_state.name} -> {self.new_state.name}")
 
 
 class NodeValueEvent(NodeEvent):

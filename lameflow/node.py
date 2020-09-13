@@ -115,7 +115,7 @@ class Node(_NodeSuperclass, same_key_error=False):
             return existing
 
     def __str__(self):
-        return f"{__class__.__name__}: {self.key}"
+        return f"{self.__class__.__name__}[{self.key}]"
 
     def __hash__(self):
         return hash(self.key)
@@ -272,6 +272,16 @@ class Node(_NodeSuperclass, same_key_error=False):
         self._value = new_value
         self.state = Node.State.VALID
         NodeValueEvent(self, old_value, new_value)
+
+    @property
+    def lazy_value(self, default=None):
+        """Return the value of this Node if it is valid, or the
+        specified default if it is invalid.
+        """
+        if self.state == Node.State.VALID:
+            return self.value
+        else:
+            return default
 
 
 class DependencyCycleError(Exception):
