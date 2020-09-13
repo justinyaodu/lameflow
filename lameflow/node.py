@@ -7,6 +7,33 @@ from typing import NamedTuple
 from ._collections import FrozenDict, ObservableList, ObservableDict
 
 
+def node(cls):
+    """Decorator for Node subclasses.
+
+    This decorator enables Node instances to be properly memoized by
+    preventing multiple calls to __init__ when returning an existing
+    instance.
+
+    If this decorator is missing from a Node subclass, a TypeError will
+    be raised at instantiation.
+    """
+
+    init = cls.__init__
+
+    def init_wrapper(self, *args, **kwargs):
+        if not hasattr(self, "_init_run_for_class"):
+            self._init_run_for_class = set()
+        if cls not in self._init_run_for_class:
+            init(self, *args, **kwargs)
+            self._init_run_for_class.add(cls)
+
+    cls.__init__ = init_wrapper
+
+    del cls._node_decorator_missing_flag
+
+    return cls
+
+
 class _NodeSuperclass:
     """Dummy superclass allowing the Node class to use the functionality
     in __init_subclass__.
@@ -38,6 +65,7 @@ class _NodeSuperclass:
         """
 
         super().__init_subclass__(**kwargs)
+
         if new_key_space is not None:
             cls._new_key_space = new_key_space
         if cls._new_key_space:
@@ -45,7 +73,23 @@ class _NodeSuperclass:
         if same_key_error is not None:
             cls._same_key_error = same_key_error
 
+        # Add a dummy attribute to be removed by the node decorator. The
+        # presence of this attribute indicates that the subclass was not
+        # decorated.
+        cls._node_decorator_missing_flag = cls
 
+    def __init__(self):
+        super().__init__()
+
+        try:
+            subclass = self._node_decorator_missing_flag
+            msg = f"Node subclass '{subclass}' is missing the node decorator."
+            raise TypeError(msg)
+        except AttributeError:
+            pass
+
+
+@node
 class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
     """Represent a node in the data flow graph."""
 
@@ -66,17 +110,10 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
             instance.key = key
             Node._by_key[key] = instance
             return instance
-        elif existing.__class__._same_key_error:
+        elif existing._same_key_error:
             raise SameKeyError(key_data, existing.__class__, new_class)
         else:
-            # TODO
-            # existing._skip_init = True
-            # existing.__init__ = lambda *args, **kwargs: args + kwargs
             return existing
-
-    def __getattribute__(self, name):
-        if name == "__init__":
-            self.__initialized = True
 
     def __str__(self):
         return str(self.key)
@@ -114,17 +151,13 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
             self._on_arg_remove(node)
 
     def __init__(self, key_data):
-        # TODO
-#        if hasattr(self, "_skip_init"):
-#            return
+        super().__init__()
 
-        # Key is assigned in __new__.
-
-        self.state = Node.State.INVALID
+        self._state = Node.State.INVALID
 
         # Keyword and positional arguments to compute_value.
-        self.args = ObservableList()
-        self.kwargs = ObservableDict()
+        self._args = ObservableList()
+        self._kwargs = ObservableDict()
 
         self.args.listeners.add(self._on_args_changed)
         self.kwargs.listeners.add(self._on_kwargs_changed)
@@ -144,11 +177,7 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @state.setter
     def state(self, new_state):
-        try:
-            old_state = self._state
-        except AttributeError:
-            old_state = None
-
+        old_state = self._state
         self._state = new_state
         if old_state is not None:
             NodeStateEvent(self, old_state, new_state)
@@ -159,11 +188,8 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @args.setter
     def args(self, value):
-        if not hasattr(self, "_args"):
-            self._args = value
-        else:
-            self._args.clear()
-            self._args.extend(value)
+        self._args.clear()
+        self._args.extend(value)
 
     @property
     def kwargs(self):
@@ -171,11 +197,8 @@ class Node(_NodeSuperclass, new_key_space=True, same_key_error=False):
 
     @kwargs.setter
     def kwargs(self, value):
-        if not hasattr(self, "_kwargs"):
-            self._kwargs = value
-        else:
-            self._kwargs.clear()
-            self._kwargs.update(value)
+        self._kwargs.clear()
+        self._kwargs.update(value)
 
     def invalidate(self):
         """Indicate that the value of this Node is no longer valid."""
