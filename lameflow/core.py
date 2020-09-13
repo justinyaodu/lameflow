@@ -9,7 +9,7 @@ __all__ = [
 from .node import *
 
 
-@node
+@nodeclass
 class _IndependentNode(Node):
     """A Node whose value is independent of other Nodes."""
 
@@ -23,7 +23,7 @@ class _IndependentNode(Node):
             Node.state.fset(self, value)
 
 
-@node
+@nodeclass
 class ConstantNode(_IndependentNode):
     """A Node whose value is a hashable constant."""
 
@@ -42,7 +42,7 @@ class ConstantNode(_IndependentNode):
         pass
 
 
-@node
+@nodeclass
 class VariableNode(_IndependentNode):
     """A Node whose value can be changed directly.
 
@@ -57,7 +57,7 @@ class VariableNode(_IndependentNode):
         return (cls, VariableNode._instance_counter)
 
 
-@node
+@nodeclass
 class FunctionNode(Node):
     """A Node whose value is bound to a function of other Node values.
 

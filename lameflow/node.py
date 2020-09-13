@@ -1,7 +1,7 @@
 """Define the Node class and node subclass decorator."""
 
 __all__ = [
-    "node",
+    "nodeclass",
     "Node",
     "DependencyCycleError",
     "SameKeyError"
@@ -16,7 +16,7 @@ from .event import *
 from ._collections import FrozenDict, ObservableList, ObservableDict
 
 
-def node(cls):
+def nodeclass(cls):
     """Decorator for Node subclasses.
 
     This decorator enables Node instances to be properly memoized by
@@ -81,13 +81,14 @@ class _NodeSuperclass:
 
         try:
             subclass = self._node_decorator_missing_flag
-            msg = f"Node subclass '{subclass}' is missing the @node decorator."
+            msg = (f"Node subclass '{subclass}' is missing the "
+                    "@nodeclass decorator.")
             raise TypeError(msg)
         except AttributeError:
             pass
 
 
-@node
+@nodeclass
 class Node(_NodeSuperclass, same_key_error=False):
     """Represent a node in the data flow graph."""
 
@@ -243,7 +244,7 @@ class Node(_NodeSuperclass, same_key_error=False):
         return None
 
     def _compute_value(self):
-        """Set this node's value using compute_value."""
+        """Set this Node's value using compute_value."""
 
         self.value = self.compute_value(*self.args, **self.kwargs)
 
