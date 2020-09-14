@@ -3,6 +3,7 @@
 __all__ = [
     "nodeclass",
     "Node",
+    "NodeCallStack",
     "DependencyCycleError",
     "SameKeyError"
 ]
@@ -100,6 +101,9 @@ class Node(_NodeSuperclass, same_key_error=False):
     _by_key = {}
     """Index all Node instances by their keys."""
 
+    _trace = []
+    """Stack trace of executing Nodes."""
+
     def __new__(new_class, *args, **kwargs):
         key = new_class.key(new_class, *args, **kwargs)
         existing = Node._by_key.get(key)
@@ -117,7 +121,10 @@ class Node(_NodeSuperclass, same_key_error=False):
         return f"{self.__class__.__name__}[{self.key}]"
 
     def __hash__(self):
-        return hash(self.key)
+        if hasattr(self, "_hash"):
+            return self._hash
+        self._hash = hash(self.key)
+        return self._hash
 
     def _on_arg_add(self, arg):
         self.invalidate()
@@ -236,9 +243,10 @@ class Node(_NodeSuperclass, same_key_error=False):
         """Indicate that the value of this Node is no longer valid."""
 
         if self.state == Node.State.VALID:
-            self.state = Node.State.INVALID
-            for dependent in self._dependents:
-                dependent.invalidate()
+            with _NodeStackFrame(self):
+                self.state = Node.State.INVALID
+                for dependent in self._dependents:
+                    dependent.invalidate()
 
     def compute_value(self, *args, **kwargs):
         """Compute this Node's value from its parent Nodes.
@@ -254,17 +262,11 @@ class Node(_NodeSuperclass, same_key_error=False):
 
         if self.state == Node.State.VALID:
             return self._value
-        elif self.state == Node.State.INVALID:
-            self.state = Node.State.PENDING
-            try:
+        else:
+            with _NodeStackFrame(self):
+                self.state = Node.State.PENDING
                 self.value = self.compute_value(*self.args, **self.kwargs)
                 return self._value
-            except DependencyCycleError as e:
-                e.trace.append(self)
-                raise
-        else:
-            # Tried to get this Node's value while recomputing this Node.
-            raise DependencyCycleError(self)
 
     @value.setter
     def value(self, new_value):
@@ -291,22 +293,35 @@ class Node(_NodeSuperclass, same_key_error=False):
             return None
 
 
+class NodeCallStack:
+    stack = []
+    _nodes = set()
+
+class _NodeStackFrame:
+    """Context manager which creates a stack frame for the currently
+    executing node and detects dependency cycles.
+    """
+
+    def __init__(self, node):
+        self.node = node
+
+    def __enter__(self):
+        if self.node in NodeCallStack._nodes:
+            raise DependencyCycleError(NodeCallStack.stack + [self.node])
+        else:
+            NodeCallStack.stack.append(self.node)
+            NodeCallStack._nodes.add(self.node)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        NodeCallStack._nodes.remove(NodeCallStack.stack.pop())
+
+
 class DependencyCycleError(Exception):
     """Raised when a dependency cycle is detected."""
 
-    def __init__(self, node):
+    def __init__(self, trace):
         super().__init__("Dependency cycle detected.")
-        self.trace = [node]
-
-    def cycle(self):
-        """Return the Nodes which make up the cycle."""
-
-        seen = set()
-        for i, node in enumerate(self.trace):
-            if node in seen:
-                return self.trace[:i]
-            else:
-                seen.add(node)
+        self.trace = trace
 
 
 class SameKeyError(Exception):

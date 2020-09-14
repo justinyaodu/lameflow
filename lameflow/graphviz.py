@@ -20,12 +20,13 @@ after = "}"
 def dot_source():
     chunks = []
     nodes = [DotNode(n) for n in Node._by_key.values()]
+    trace_adjacent = set(zip(NodeCallStack.stack, NodeCallStack.stack[1:]))
 
     for node in nodes:
         chunks.append(node.definition)
 
     for node in nodes:
-        chunks.append(node.edges)
+        chunks.append(node.edges(trace_adjacent))
 
     return "\n".join([before, *chunks, after])
 
@@ -84,9 +85,13 @@ class DotNode:
             s = repr(node.value)
         return re.sub(r"([\\{}|<>]|\\n)", r"\\1", s)
 
-    @property
-    def edges(self):
+    def edges(self, highlighted_pairs):
         node = self.node
-        return "\n".join(f'{id(arg)}:"!":s -> {id(node)}:"{name}":n'
-                for name, arg in
-                itertools.chain(enumerate(node.args), node.kwargs.items()))
+        lines = []
+        for name, arg in itertools.chain(
+                enumerate(node.args), node.kwargs.items()):
+            line = f'{id(arg)}:"!":s -> {id(node)}:"{name}":n'
+            if (node, arg) in highlighted_pairs:
+                line += " [penwidth=4]"
+            lines.append(line)
+        return "\n".join(lines)
