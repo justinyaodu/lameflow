@@ -1,6 +1,8 @@
 """Nodes for constants, independent variables, and bound variables."""
 
 __all__ = [
+    "SingleAssignNode",
+    "IndependentNode",
     "ConstNode",
     "VarNode",
     "FuncNode"
@@ -10,21 +12,35 @@ from .node import *
 
 
 @nodeclass
-class _IndependentNode(Node):
-    """A Node whose value is independent of other Nodes."""
+class SingleAssignNode(Node):
+    """A Node whose value can only be assigned once."""
+
+    def invalidate(self):
+        if self.state == Node.State.VALID:
+            raise TypeError("Cannot invalidate the value of a "
+                    f"{self.__class__.__name__}.")
+        else:
+            super().invalidate()
+
+
+@nodeclass
+class IndependentNode(Node):
+    """A Node whose value is not dependent on other Nodes."""
 
     def __init__(self, value):
         super().__init__()
         self.value = value
 
-    @Node.state.setter
-    def state(self, value):
-        if self.state != Node.State.VALID:
-            Node.state.fset(self, value)
+        self.args.listeners.add(self._args_modified_error)
+        self.kwargs.listeners.add(self._args_modified_error)
+
+    def _args_modified_error(self, *args, **kwargs):
+        raise TypeError("Cannot add arguments to a "
+                f"{self.__class__.__name__}.")
 
 
 @nodeclass
-class ConstNode(_IndependentNode):
+class ConstNode(IndependentNode, SingleAssignNode):
     """A Node whose value is a hashable constant."""
 
     @Node.value.setter
@@ -37,16 +53,12 @@ class ConstNode(_IndependentNode):
             Node.value.fset(self, new_value)
             self.__initialized = True
 
-    def invalidate(self):
-        # Constants cannot be invalidated.
-        pass
-
     def __str__(self):
         return f"{self.__class__.__name__}[{repr(self.lazy_value)}]"
 
 
 @nodeclass
-class VarNode(_IndependentNode):
+class VarNode(IndependentNode):
     """A Node whose value can be changed directly.
 
     VarNode instances are never memoized.
@@ -81,7 +93,8 @@ class FuncNode(Node):
                 **{k: n.value for k, n in kwargs.items()})
 
     def __str__(self):
-        before = f"{self.__class__.__name__}[{self.args[0].value.__name__}("
+        before = (f"{self.__class__.__name__}"
+                f"[{self.args[0].value.__qualname__}(")
         args = [str(arg) for arg in self.args[1:]]
         args.extend(f"{k}={v}" for k, v in self.kwargs.items())
         args = ", ".join(args)

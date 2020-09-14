@@ -243,11 +243,6 @@ class Node(_NodeSuperclass, same_key_error=False):
 
         return None
 
-    def _compute_value(self):
-        """Set this Node's value using compute_value."""
-
-        self.value = self.compute_value(*self.args, **self.kwargs)
-
     @property
     def value(self):
         """Get the value of this Node, recomputing it if necessary."""
@@ -255,8 +250,9 @@ class Node(_NodeSuperclass, same_key_error=False):
         if self.state == Node.State.VALID:
             return self._value
         elif self.state == Node.State.INVALID:
+            self.state = Node.State.PENDING
             try:
-                self._compute_value()
+                self.value = self.compute_value(*self.args, **self.kwargs)
                 return self._value
             except DependencyCycleError as e:
                 e.trace.append(self)
@@ -271,10 +267,12 @@ class Node(_NodeSuperclass, same_key_error=False):
             return
 
         self.invalidate()
+
         old_value = self._value
         self._value = new_value
-        self.state = Node.State.VALID
         NodeValueEvent(self, old_value, new_value)
+
+        self.state = Node.State.VALID
 
     @property
     def lazy_value(self):
