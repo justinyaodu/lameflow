@@ -4,7 +4,10 @@ __all__ = [
     "NodeEvent",
     "NodeCreateEvent",
     "NodeStateEvent",
-    "NodeValueEvent"
+    "NodeValueEvent",
+    "NodeArgEvent",
+    "NodeArgAddEvent",
+    "NodeArgRemoveEvent",
 ]
 
 class NodeEvent:
@@ -52,3 +55,21 @@ class NodeValueEvent(NodeEvent):
 
     def __str__(self):
         return super().__str__() + f": {self.new_value}"
+
+
+class NodeArgEvent(NodeEvent):
+    """Fired when a Node's arguments are added or removed."""
+
+    def __init__(self, node, arg):
+        self.arg = arg
+        super().__init__(node)
+
+
+class NodeArgAddEvent(NodeArgEvent):
+    def __str__(self):
+        return super().__str__() + f": added {self.arg}"
+
+
+class NodeArgRemoveEvent(NodeArgEvent):
+    def __str__(self):
+        return super().__str__() + f": removed {self.arg}"

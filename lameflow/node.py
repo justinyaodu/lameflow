@@ -126,6 +126,7 @@ class Node(_NodeSuperclass, same_key_error=False):
         except KeyError:
             arg._dependents.add(self)
             self._arg_refcount[arg] = 1
+        NodeArgAddEvent(self, arg)
 
     def _on_arg_remove(self, arg):
         self.invalidate()
@@ -133,6 +134,7 @@ class Node(_NodeSuperclass, same_key_error=False):
         if self._arg_refcount[arg] == 0:
             del self._arg_refcount[arg]
             arg._dependents.remove(self)
+        NodeArgRemoveEvent(self, arg)
 
     def _on_args_changed(self, mutation):
         for arg in mutation.added:
