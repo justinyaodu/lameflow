@@ -8,7 +8,6 @@ __all__ = [
 ]
 
 import enum
-import itertools
 from typing import NamedTuple
 
 from .event import *
@@ -106,8 +105,8 @@ class Node(_NodeSuperclass, same_key_error=False):
         existing = Node._by_key.get(key)
         if existing is None:
             instance = super().__new__(new_class)
-            instance.key = key
             Node._by_key[key] = instance
+            instance._init(key)
             return instance
         elif existing._same_key_error:
             raise SameKeyError(key, existing.__class__, new_class)
@@ -172,15 +171,13 @@ class Node(_NodeSuperclass, same_key_error=False):
             items.append(FrozenDict(kwargs))
         return tuple(items)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
+    def _init(self, key):
+        """Do some initialization after __new__ but before __init__."""
+
+        self.key = key
 
         self._state = Node.State.INVALID
         self._value = None
-
-        # Map Nodes to the number of times they appear in this Node's
-        # arguments.
-        self._arg_refcount = {}
 
         # Keyword and positional arguments to compute_value.
         self._args = ObservableList()
@@ -189,13 +186,19 @@ class Node(_NodeSuperclass, same_key_error=False):
         self.args.listeners.add(self._on_args_changed)
         self.kwargs.listeners.add(self._on_kwargs_changed)
 
-        self.args = args
-        self.kwargs = kwargs
+        # Map Nodes to the number of times they appear in this Node's
+        # arguments.
+        self._arg_refcount = {}
 
         # Nodes whose values depend on this Node.
         self._dependents = set()
 
         NodeCreateEvent(self)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.args = args
+        self.kwargs = kwargs
 
     @property
     def state(self):
@@ -297,7 +300,7 @@ class DependencyCycleError(Exception):
         """Return the Nodes which make up the cycle."""
 
         seen = set()
-        for node, i in zip(self.trace, itertools.count()):
+        for i, node in enumerate(self.trace):
             if node in seen:
                 return self.trace[:i]
             else:
