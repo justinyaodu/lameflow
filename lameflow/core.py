@@ -103,8 +103,8 @@ class FuncNode(Node):
         before = f"{self.__class__.__name__}[{func_name}("
 
         args = [str(arg) for arg in self.args]
-        args.extend(
-                f"{k}={v}" for k, v in self.kwargs.items() if k[:2] != "__")
+        args.extend(f"{k}={v}" for k, v in self.kwargs.items()
+                if not k.startswith("__"))
         args = ", ".join(args)
 
         return before + args + ")]"
