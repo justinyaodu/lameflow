@@ -86,16 +86,25 @@ class FuncNode(Node):
     """
 
     def __init__(self, func, *args, **kwargs):
-        super().__init__(ConstNode(func), *args, **kwargs)
+        kwargs["__func"] = ConstNode(func)
+        super().__init__(*args, **kwargs)
 
-    def compute_value(self, func, *args, **kwargs):
-        return func.value(*(n.value for n in args),
+    def compute_value(self, *args, **kwargs):
+        func = kwargs.pop("__func").value
+        return func(*(n.value for n in args),
                 **{k: n.value for k, n in kwargs.items()})
 
     def __str__(self):
-        before = (f"{self.__class__.__name__}"
-                f"[{self.args[0].value.__qualname__}(")
-        args = [str(arg) for arg in self.args[1:]]
-        args.extend(f"{k}={v}" for k, v in self.kwargs.items())
+        try:
+            func_name = self.kwargs["__func"].value.__qualname__
+        except KeyError:
+            func_name = "None"
+
+        before = f"{self.__class__.__name__}[{func_name}("
+
+        args = [str(arg) for arg in self.args]
+        args.extend(
+                f"{k}={v}" for k, v in self.kwargs.items() if k[:2] != "__")
         args = ", ".join(args)
+
         return before + args + ")]"
