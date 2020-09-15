@@ -32,7 +32,7 @@ class FrozenDict(Mapping, _CollectionWrapper):
     def __hash__(self):
         if hasattr(self, "_hash"):
             return self._hash
-        self._hash = hash(tuple(t for k, v in self._data.items()))
+        self._hash = hash(tuple(self._data.items()))
         return self._hash
 
 
