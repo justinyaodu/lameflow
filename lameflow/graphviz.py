@@ -1,7 +1,6 @@
 import itertools
 import re
 import textwrap
-from types import SimpleNamespace
 
 from .node import *
 from .core import *
