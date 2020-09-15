@@ -202,6 +202,9 @@ class Node(_NodeSuperclass, same_key_error=False):
         # Nodes whose values depend on this Node.
         self._dependents = set()
 
+        if NodeCallStack.stack:
+            self._created_by = NodeCallStack.stack[-1]
+
         NodeCreateEvent(self)
 
         NodeCallStack._push(self)

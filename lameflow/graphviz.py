@@ -12,23 +12,23 @@ before = textwrap.dedent("""
     node [shape=record style=filled]
     node [fontname=courier]
     edge [fontname=courier]
-    graph [fontname=courier]""")
+    graph [fontname=courier labelloc=t]""")
 
 after = "}"
 
 
-def dot_source():
+def dot_source(label=""):
     chunks = []
     nodes = [DotNode(n) for n in Node._by_key.values()]
-    trace_adjacent = set(zip(NodeCallStack.stack, NodeCallStack.stack[1:]))
 
     for node in nodes:
         chunks.append(node.definition)
 
+    call_stack_adj = set(zip(NodeCallStack.stack, NodeCallStack.stack[1:]))
     for node in nodes:
-        chunks.append(node.edges(trace_adjacent))
+        chunks.append(node.edges(call_stack_adj))
 
-    return "\n".join([before, *chunks, after])
+    return "\n".join([before, f'label = "{label}"', *chunks, after])
 
 
 class DotNode:
@@ -88,10 +88,18 @@ class DotNode:
     def edges(self, highlighted_pairs):
         node = self.node
         lines = []
+
+        if (hasattr(node, "_created_by")
+                and not node._created_by._arg_refcount.get(node)):
+            # Creator node has not added this argument yet.
+            lines.append(
+                    f"{id(node)} -> {id(node._created_by)} [style=dashed]")
+
         for name, arg in itertools.chain(
                 enumerate(node.args), node.kwargs.items()):
             line = f'{id(arg)}:"!":s -> {id(node)}:"{name}":n'
             if (node, arg) in highlighted_pairs:
                 line += " [penwidth=4]"
             lines.append(line)
+
         return "\n".join(lines)
