@@ -27,7 +27,7 @@ class SingleAssignNode(Node):
 class IndependentNode(Node):
     """A Node whose value is not dependent on other Nodes."""
 
-    def __init__(self, value):
+    def __init__(self, value, **kwargs):
         super().__init__()
         self.value = value
 

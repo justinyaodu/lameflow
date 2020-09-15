@@ -105,12 +105,13 @@ class Node(_NodeSuperclass, same_key_error=False):
     """Stack trace of executing Nodes."""
 
     def __new__(new_class, *args, **kwargs):
+        name = kwargs.pop("__name", "?")
         key = new_class.key(new_class, *args, **kwargs)
         existing = Node._by_key.get(key)
         if existing is None:
             instance = super().__new__(new_class)
             Node._by_key[key] = instance
-            instance._init(key)
+            instance._init(key, name)
             return instance
         elif existing._same_key_error:
             raise SameKeyError(key, existing.__class__, new_class)
@@ -180,10 +181,11 @@ class Node(_NodeSuperclass, same_key_error=False):
             items.append(FrozenDict(kwargs))
         return tuple(items)
 
-    def _init(self, key):
+    def _init(self, key, name):
         """Do some initialization after __new__ but before __init__."""
 
         self.key = key
+        self.name = name
 
         self._state = Node.State.INVALID
         self._value = None
@@ -211,6 +213,8 @@ class Node(_NodeSuperclass, same_key_error=False):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+
+        kwargs.pop("__name", None)
 
         self.args = args
         self.kwargs = kwargs
