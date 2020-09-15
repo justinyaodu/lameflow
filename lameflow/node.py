@@ -204,10 +204,15 @@ class Node(_NodeSuperclass, same_key_error=False):
 
         NodeCreateEvent(self)
 
+        NodeCallStack._push(self)
+
     def __init__(self, *args, **kwargs):
         super().__init__()
+
         self.args = args
         self.kwargs = kwargs
+
+        NodeCallStack._pop(self)
 
     @property
     def state(self):
