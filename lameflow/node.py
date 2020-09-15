@@ -294,8 +294,30 @@ class Node(_NodeSuperclass, same_key_error=False):
 
 
 class NodeCallStack:
+    """Call stack for currently executing nodes."""
+
     stack = []
     _nodes = set()
+
+    @classmethod
+    def _push(cls, node):
+        if node in cls._nodes:
+            raise DependencyCycleError(cls.stack + [node])
+        else:
+            cls._nodes.add(node)
+            cls.stack.append(node)
+
+    @classmethod
+    def _pop(cls, node):
+        if not cls.stack:
+            raise IndexError(f"Cannot pop '{node}' from empty call stack.")
+        elif node != cls.stack[-1]:
+            raise TypeError("super().__init__ not called for node "
+                    f"{cls.stack[-1]}.")
+        else:
+            cls._nodes.remove(node)
+            cls.stack.pop()
+
 
 class _NodeStackFrame:
     """Context manager which creates a stack frame for the currently
@@ -306,14 +328,10 @@ class _NodeStackFrame:
         self.node = node
 
     def __enter__(self):
-        if self.node in NodeCallStack._nodes:
-            raise DependencyCycleError(NodeCallStack.stack + [self.node])
-        else:
-            NodeCallStack.stack.append(self.node)
-            NodeCallStack._nodes.add(self.node)
+        NodeCallStack._push(self.node)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        NodeCallStack._nodes.remove(NodeCallStack.stack.pop())
+        NodeCallStack._pop(self.node)
 
 
 class DependencyCycleError(Exception):
