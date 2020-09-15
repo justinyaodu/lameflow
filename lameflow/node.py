@@ -105,7 +105,7 @@ class Node(_NodeSuperclass, same_key_error=False):
     """Stack trace of executing Nodes."""
 
     def __new__(new_class, *args, **kwargs):
-        name = kwargs.pop("__name", "?")
+        name = kwargs.pop("__name", None)
         key = new_class.key(new_class, *args, **kwargs)
         existing = Node._by_key.get(key)
         if existing is None:

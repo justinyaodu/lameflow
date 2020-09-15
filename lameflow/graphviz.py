@@ -65,7 +65,7 @@ class DotNode:
             rows.append("{" + "|".join(args) + "}")
 
         header = node.__class__.__name__
-        if hasattr(node, "name"):
+        if node.name is not None:
             header += f" {node.name}"
         rows.append(header)
 
