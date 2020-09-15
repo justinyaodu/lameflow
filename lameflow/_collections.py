@@ -90,7 +90,7 @@ class ObservableList(MutableSequence, _ObservableCollection):
         if i is None or i >= 0:
             return i
         else:
-            return len(self) - i
+            return len(self) + i
 
     def _slice_indices(self, s):
         """Return the indices in a slice of this list.
@@ -155,10 +155,7 @@ class ObservableList(MutableSequence, _ObservableCollection):
                 for index, element in zip(indices, added):
                     self[index] = element
         else:
-            key = int(key)
-            if key < 0:
-                key = len(self) + key
-
+            key = self._index_normalize(int(key))
             old_value = self[key]
             self._data[key] = value
             self._notify(key, [old_value], [value])
@@ -178,7 +175,8 @@ class ObservableList(MutableSequence, _ObservableCollection):
                 for index in indices:
                     del self[index]
         else:
-            self[key:key] = []
+            key = self._index_normalize(key)
+            self[key : key + 1] = []
 
     def insert(self, index, value):
         self[index:index] = [value]
