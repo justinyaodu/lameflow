@@ -8,6 +8,9 @@ __all__ = [
     "NodeArgEvent",
     "NodeArgAddEvent",
     "NodeArgRemoveEvent",
+    "NodeCallStackEvent",
+    "NodeCallStackPushEvent",
+    "NodeCallStackPopEvent",
 ]
 
 class NodeEvent:
@@ -66,10 +69,20 @@ class NodeArgEvent(NodeEvent):
 
 
 class NodeArgAddEvent(NodeArgEvent):
-    def __str__(self):
-        return super().__str__() + f": added {self.arg}"
+    pass
 
 
 class NodeArgRemoveEvent(NodeArgEvent):
-    def __str__(self):
-        return super().__str__() + f": removed {self.arg}"
+    pass
+
+
+class NodeCallStackEvent(NodeEvent):
+    """Fired when the Node call stack is modified."""
+
+
+class NodeCallStackPushEvent(NodeCallStackEvent):
+    pass
+
+
+class NodeCallStackPopEvent(NodeCallStackEvent):
+    pass

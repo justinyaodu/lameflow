@@ -301,8 +301,15 @@ class Node(_NodeSuperclass, same_key_error=False):
 class NodeCallStack:
     """Call stack for currently executing nodes."""
 
-    stack = []
+    stack = ObservableList()
     _nodes = set()
+
+    @staticmethod
+    def _on_stack_change(mutation):
+        for node in mutation.added:
+            NodeCallStackPushEvent(node)
+        for node in reversed(mutation.removed):
+            NodeCallStackPopEvent(node)
 
     @classmethod
     def _push(cls, node):
@@ -322,6 +329,8 @@ class NodeCallStack:
         else:
             cls._nodes.remove(node)
             cls.stack.pop()
+
+NodeCallStack.stack.listeners.add(NodeCallStack._on_stack_change)
 
 
 class _NodeStackFrame:
