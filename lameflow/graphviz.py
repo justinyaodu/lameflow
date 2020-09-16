@@ -6,7 +6,7 @@ from .node import *
 from .core import *
 
 
-before = textwrap.dedent("""
+before = textwrap.dedent("""\
     digraph G {
     node [shape=record style=filled]
     node [fontname=courier]
