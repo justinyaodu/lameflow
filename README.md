@@ -37,3 +37,7 @@ def listener(event):
 
 NodeEvent.listeners.add(listener)
 ```
+
+## License
+
+`lameflow` is licensed under the [MIT License](LICENSE.md).
