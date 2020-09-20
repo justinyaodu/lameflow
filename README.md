@@ -4,7 +4,7 @@ _A lazy and memoized dataflow computation framework for Python._
 
 ## About
 
-`lameflow` represents computation as a directed acyclic graph, where nodes represent data and edges represent data dependencies. Each node is automatically invalidated when its dependencies change, and lazily evaluated when its value is requested.
+`lameflow` represents computations in a directed acyclic graph, where nodes represent data and edges represent data dependencies. Each node is automatically invalidated when its dependencies change, and lazily evaluated when its value is requested.
 
 ## Graph Visualization
 
