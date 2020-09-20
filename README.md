@@ -18,11 +18,11 @@ Calculating the roots of a quadratic equation:
 
 Nodes are implicitly memoized, since applying the same (pure) function to the same variables will always yield the same result. This simplifies the implementation of recursive dynamic programming algorithms, and also allows common subexpression elimination to occur at runtime.
 
-Using Fibonacci numbers as an example: the naïve recursive algorithm is ![O(2^n)](latex/big-o-2-n.svg), while the memoized algorithm is ![O(n)](latex/big-o-n.svg). From the graph below, it is apparent how existing nodes are reused.
+Using Fibonacci numbers as an example: the naïve recursive algorithm is _O(2ⁿ)_, while the memoized algorithm is _O(n)_. From the graph below, it is apparent how existing nodes are reused.
 
 ![Fibonacci memoized](demo/fibonacci.svg)
 
-Without memoization, the calculation is much slower for large values of ![n](latex/n.svg):
+Without memoization, the calculation is much slower for large values of _n_:
 
 ![Fibonacci without memoization](demo/fibonacci-no-memo.svg)
 
